@@ -205,21 +205,19 @@ contract TestPookaValuationHook is Test, Deployers {
         uint160 sqrtPriceAtTickLower = TickMath.getSqrtPriceAtTick(-10);
 
         // Add liquidity of 10 DAI
-        uint256 daiToAdd = 100 ether;
+        uint256 daiToAdd = 10 ether;
         uint128 liquidityDelta = LiquidityAmounts.getLiquidityForAmount0(
             sqrtPriceAtTickLower,
             Constants.SQRT_PRICE_1_1,
             daiToAdd
         );
 
-        // Add liquidity
-        // @TODO: find out why dai balance overflows when adding liquidity
-        // if the amount > 10 * 10 ** 6
+        // owner Add liquidity
         modifyLiquidityRouter.modifyLiquidity{value: daiToAdd}(
             key,
             IPoolManager.ModifyLiquidityParams({
-                tickLower: -10,
-                tickUpper: 10,
+                tickLower: -60,
+                tickUpper: 60,
                 liquidityDelta: int256(uint256(liquidityDelta)),
                 salt: bytes32(0)
             }),

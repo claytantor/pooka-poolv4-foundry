@@ -32,11 +32,9 @@ contract DeployPookaHook is Script {
 
         // hook contracts must have specific flags encoded in the address
         uint160 flags = uint160(Hooks.BEFORE_SWAP_FLAG);
-        // Create DAI/WETH Pool with Hook
-        IPoolManager poolManager = IPoolManager(poolManagerAddress);
 
         // Mine a salt that will produce a hook address with the correct flags
-
+        IPoolManager poolManager = IPoolManager(poolManagerAddress);
         bytes memory constructorArgs = abi.encode(poolManager);
         (address hookAddress, bytes32 salt) = HookMiner.find(
             create2DeployerAddress,

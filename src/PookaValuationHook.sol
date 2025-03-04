@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 // lib/v4-core/src/interfaces/IHooks.sol
 import {IHooks} from "v4-core/interfaces/IHooks.sol";
 import {Hooks} from "v4-core/libraries/Hooks.sol";
-import {BaseHook} from "v4-periphery/base/hooks/BaseHook.sol";
+import {BaseHook} from "v4-periphery/utils/BaseHook.sol";
 import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
 import {BeforeSwapDelta, BeforeSwapDeltaLibrary} from "v4-core/types/BeforeSwapDelta.sol";
 import {TickMath} from "v4-core/libraries/TickMath.sol";

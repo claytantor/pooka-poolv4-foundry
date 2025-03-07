@@ -22,7 +22,7 @@ contract DeployPookaHook is Script {
         // Sepolia Addresses (Replace with actual addresses)
         // Load all addresses from environment variables
         address dai = vm.envAddress("DAI_ADDRESS");
-        address weth = vm.envAddress("WETH_ADDRESS");
+        address pooka = vm.envAddress("POOKA_ADDRESS");
         address create2DeployerAddress = vm.envAddress(
             "CREATE2_DEPLOYER_ADDRESS"
         );
@@ -49,7 +49,7 @@ contract DeployPookaHook is Script {
         PookaValuationHook pvh = new PookaValuationHook{salt: salt}(
             IPoolManager(poolManager),
             dai,
-            weth
+            pooka
         );
 
         require(

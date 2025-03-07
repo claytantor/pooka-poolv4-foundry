@@ -43,9 +43,6 @@ contract AddLiquidityScript is Script {
     function run() external {
         address dai = vm.envAddress("DAI_ADDRESS");
         address pooka = vm.envAddress("POOKA_ADDRESS");
-        // address create2DeployerAddress = vm.envAddress(
-        //     "CREATE2_DEPLOYER_ADDRESS"
-        // );
         address poolManagerAddress = vm.envAddress("POOL_MANAGER_ADDRESS");
         address hookContractAddress = vm.envAddress("POOKA_HOOK_CONTRACT");
         IHooks hookContract = IHooks(hookContractAddress);

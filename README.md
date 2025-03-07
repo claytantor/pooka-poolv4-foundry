@@ -106,7 +106,26 @@ $ forge install uniswap/v4-periphery
 $ forge test -vvv
 ```
 
-# Deploy the Pooka Token to Anvil
-```shell
-forge script script/DeployPooka.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
-```
+# Deploying the Contracts via Anvil
+
+1. **Deploy the Pooka Token**:
+   ```shell
+   $ forge script script/0_DeployPooka.s.sol --rpc-url http://
+   ```
+
+2. **Deploy the Pooka Valuation Hook**:
+   ```shell
+   $ forge script script/1_DeployPookaValuationHook.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
+   ```
+
+3. **Create the Uniswap V4 Pool**:
+   ```shell
+   $ forge script script/2_CreatePool.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
+   ```
+
+4. **Adjust the Warchest Liquidity**:
+   ```shell
+   $ forge script script/script/3_AddLiquidity.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
+   ```
+
+

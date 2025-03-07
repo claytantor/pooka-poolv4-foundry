@@ -68,7 +68,6 @@ contract CreatePoolOnly is Script {
             tickSpacing: tickSpacing,
             hooks: hookContract
         });
-        // bytes memory hookData = new bytes(0);
 
         vm.broadcast();
         IPoolManager(poolManagerAddress).initialize(pool, startingPrice);

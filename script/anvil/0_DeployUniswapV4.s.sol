@@ -4,7 +4,6 @@ pragma solidity ^0.8.19;
 import {Script} from "forge-std/Script.sol";
 import {PoolManager} from "v4-core/PoolManager.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
-// import {PoolModifyPositionTest} from "v4-core/contracts/test/PoolModifyPositionTest.sol";
 import {PoolSwapTest} from "v4-core/test/PoolSwapTest.sol";
 import {PoolDonateTest} from "v4-core/test/PoolDonateTest.sol";
 import {Currency} from "v4-core/types/Currency.sol";
@@ -26,6 +25,10 @@ contract DeployUniswapV4 is Script {
         PoolDonateTest donateRouter = new PoolDonateTest(
             IPoolManager(address(poolManager))
         );
+
+        // // Deploy the Create2Deployer contract
+        // Create2Deployer create2Deployer = new Create2Deployer();
+        // create2DeployerAddress = address(create2Deployer);
 
         vm.stopBroadcast();
 

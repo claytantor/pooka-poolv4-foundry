@@ -2,6 +2,7 @@
 pragma solidity ^0.8.17;
 
 import "forge-std/Script.sol";
+import "forge-std/console.sol";
 import {PookaToken} from "../src/PookaToken.sol";
 
 /// @title DeployPooka

@@ -28,8 +28,6 @@ contract DeployPookaHook is Script {
         );
         address poolManagerAddress = vm.envAddress("POOL_MANAGER_ADDRESS");
 
-        vm.startBroadcast(deployerPrivateKey); // Start broadcasting transactions
-
         // hook contracts must have specific flags encoded in the address
         uint160 flags = uint160(Hooks.BEFORE_SWAP_FLAG);
 
@@ -43,8 +41,7 @@ contract DeployPookaHook is Script {
             constructorArgs
         );
 
-        // Deploy the hook using CREATE2
-        vm.broadcast();
+        vm.startBroadcast(deployerPrivateKey); // Start broadcasting transactions
 
         PookaValuationHook pvh = new PookaValuationHook{salt: salt}(
             IPoolManager(poolManager),

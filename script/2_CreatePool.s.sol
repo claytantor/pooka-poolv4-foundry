@@ -2,13 +2,11 @@
 pragma solidity ^0.8.17;
 
 import "forge-std/Script.sol";
+import "forge-std/console.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {CurrencyLibrary, Currency} from "v4-core/types/Currency.sol";
 import {IHooks} from "v4-core/interfaces/IHooks.sol";
-
-// import {Constants} from "./base/Constants.sol";
-// import {Config} from "./base/Config.sol";
 
 contract CreatePoolOnly is Script {
     using CurrencyLibrary for Currency;
@@ -37,15 +35,12 @@ contract CreatePoolOnly is Script {
     function setUp() public {}
 
     function run() external {
-        // uint256 deployerPrivateKey = vm.envUint("SIGNER_PRIVATE_KEY"); // Load private key from .env
+        uint256 deployerPrivateKey = vm.envUint("SIGNER_PRIVATE_KEY"); // Load private key from .env
 
         address dai = vm.envAddress("DAI_ADDRESS");
         address pooka = vm.envAddress("POOKA_ADDRESS");
-        // address create2DeployerAddress = vm.envAddress(
-        //     "CREATE2_DEPLOYER_ADDRESS"
-        // );
         address poolManagerAddress = vm.envAddress("POOL_MANAGER_ADDRESS");
-        address hookContractAddress = vm.envAddress("POOKA_HOOK_CONTRACT");
+        address hookContractAddress = vm.envAddress("POOKA_HOOK_ADDRESS");
         IHooks hookContract = IHooks(hookContractAddress);
 
         // sort the addresses
@@ -69,7 +64,7 @@ contract CreatePoolOnly is Script {
             hooks: hookContract
         });
 
-        vm.broadcast();
+        vm.startBroadcast(deployerPrivateKey); // Start broadcasting transactions
         IPoolManager(poolManagerAddress).initialize(pool, startingPrice);
     }
 }

@@ -16,6 +16,9 @@ import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
 import {IHooks} from "v4-core/interfaces/IHooks.sol";
 import {IAllowanceTransfer} from "permit2/src/interfaces/IAllowanceTransfer.sol";
 import {LiquidityAmounts} from "v4-periphery/libraries/LiquidityAmounts.sol";
+import {Hooks} from "v4-core/libraries/Hooks.sol";
+import {PoolSwapTest} from "v4-core/test/PoolSwapTest.sol";
+import {PoolModifyLiquidityTest} from "v4-core/test/PoolModifyLiquidityTest.sol";
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
@@ -34,9 +37,16 @@ contract AddLiquidityScript is Script {
     uint256 public token1Amount = 1e18;
 
     // range of the position
-    int24 tickLower = -600; // must be a multiple of tickSpacing
-    int24 tickUpper = 600;
+    // int24 tickLower = -600; // must be a multiple of tickSpacing
+    // int24 tickUpper = 600;
+    int24 tickLower = TickMath.minUsableTick(tickSpacing);
+    int24 tickUpper = TickMath.maxUsableTick(tickSpacing);
     /////////////////////////////////////
+
+    IPoolManager poolManager;
+    IPositionManager posm;
+    PoolModifyLiquidityTest lpRouter;
+    PoolSwapTest swapRouter;
 
     function setUp() public {}
 
@@ -68,20 +78,24 @@ contract AddLiquidityScript is Script {
 
         address dai = vm.envAddress("DAI_ADDRESS");
         address pooka = vm.envAddress("POOKA_ADDRESS");
-        // address poolManagerAddress = vm.envAddress("POOL_MANAGER_ADDRESS");
-        // address hookContractAddress = vm.envAddress("POOKA_HOOK_ADDRESS");
+        address poolManagerAddress = vm.envAddress("POOL_MANAGER_ADDRESS");
+        address hookContractAddress = vm.envAddress("POOKA_HOOK_ADDRESS");
         address lpRouterAddress = vm.envAddress(
             "MODIFY_LIQUIDITY_ROUTER_ADDRESS"
         );
         address swapRouterAddress = vm.envAddress("SWAP_ROUTER_ADDRESS");
 
-        // IHooks hookContract = IHooks(hookContractAddress);
-        // IPoolManager poolManager = IPoolManager(poolManagerAddress);
+        IHooks hookContract = IHooks(hookContractAddress);
+        poolManager = IPoolManager(poolManagerAddress);
 
         address positionManagerAddress = vm.envAddress(
             "POSITION_MANAGER_ADDRESS"
         );
-        PositionManager posm = PositionManager(payable(positionManagerAddress));
+
+        posm = PositionManager(payable(positionManagerAddress));
+        // make the liquidity position router
+        lpRouter = new PoolModifyLiquidityTest(poolManager);
+        swapRouter = new PoolSwapTest(poolManager);
 
         address permitAddress = vm.envAddress("PERMIT2_ADDRESS");
 
@@ -102,49 +116,6 @@ contract AddLiquidityScript is Script {
             currency1 = Currency.wrap(dai);
             token1Address = dai;
         }
-
-        // PoolKey memory pool = PoolKey({
-        //     currency0: currency0,
-        //     currency1: currency1,
-        //     fee: lpFee,
-        //     tickSpacing: tickSpacing,
-        //     hooks: hookContract
-        // });
-
-        // (uint160 sqrtPriceX96, , , ) = poolManager.getSlot0(pool.toId());
-
-        // // Converts token amounts to liquidity units
-        // uint128 liquidity = LiquidityAmounts.getLiquidityForAmounts(
-        //     sqrtPriceX96,
-        //     TickMath.getSqrtPriceAtTick(tickLower),
-        //     TickMath.getSqrtPriceAtTick(tickUpper),
-        //     token0Amount,
-        //     token1Amount
-        // );
-
-        // // slippage limits
-        // uint256 amount0Max = token0Amount + 1 wei;
-        // uint256 amount1Max = token1Amount + 1 wei;
-
-        // bytes memory hookData = new bytes(0);
-
-        // vm.startBroadcast();
-        // tokenApprovals(token0Address, token1Address, permitAddress, posm);
-        // vm.stopBroadcast();
-
-        // vm.startBroadcast();
-        // IPositionManager(address(posm)).mint(
-        //     pool,
-        //     tickLower,
-        //     tickUpper,
-        //     liquidity,
-        //     amount0Max,
-        //     amount1Max,
-        //     msg.sender,
-        //     block.timestamp + 60,
-        //     hookData
-        // );
-        // vm.stopBroadcast();
 
         vm.startBroadcast(deployerPrivateKey); // Start broadcasting transactions
 
@@ -167,35 +138,75 @@ contract AddLiquidityScript is Script {
             permitAddress
         );
 
+        // get the pool from the Pool manager
+        // Construct the PoolKey
+        PoolKey memory poolKey = PoolKey({
+            currency0: Currency.wrap(token0Address), // Convert token address to Currency type
+            currency1: Currency.wrap(token1Address),
+            fee: lpFee,
+            tickSpacing: 60, // Example tick spacing (depends on fee tier)
+            hooks: hookContract // Convert the hook address
+        });
+
+        // provisions full-range liquidity twice. Two different periphery contracts used for example purposes.
+        IPoolManager.ModifyLiquidityParams memory liqParams = IPoolManager
+            .ModifyLiquidityParams(tickLower, tickUpper, 1000 ether, 0);
+        lpRouter.modifyLiquidity(poolKey, liqParams, "");
+
+        posm.mint(
+            poolKey,
+            tickLower,
+            tickUpper,
+            100e18,
+            10_000e18,
+            10_000e18,
+            msg.sender,
+            block.timestamp + 300,
+            ""
+        );
+
+        // swap some tokens
+        bool zeroForOne = true;
+        int256 amountSpecified = 10 ether;
+        IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
+            zeroForOne: zeroForOne,
+            amountSpecified: amountSpecified,
+            sqrtPriceLimitX96: zeroForOne
+                ? TickMath.MIN_SQRT_PRICE + 1
+                : TickMath.MAX_SQRT_PRICE - 1 // unlimited impact
+        });
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest
+            .TestSettings({takeClaims: false, settleUsingBurn: false});
+        swapRouter.swap(poolKey, params, testSettings, "");
+
         vm.stopBroadcast();
     }
 
-    function tokenApprovals(
-        address token0,
-        address token1,
-        address permitAddress,
-        IPositionManager posm
-    ) public {
-        Currency currency0 = Currency.wrap(token0);
-        Currency currency1 = Currency.wrap(token1);
-        if (!currency0.isAddressZero()) {
-            // Inline ERC20 and permitManager calls
-            ERC20(token0).approve(permitAddress, type(uint256).max);
-            IAllowanceTransfer(permitAddress).approve(
-                token0, // token0 is already an address
-                address(posm),
-                type(uint160).max,
-                type(uint48).max
-            );
-        }
-        if (!currency1.isAddressZero()) {
-            ERC20(token1).approve(permitAddress, type(uint256).max);
-            IAllowanceTransfer(permitAddress).approve(
-                token1,
-                address(posm),
-                type(uint160).max,
-                type(uint48).max
-            );
-        }
-    }
+    // function tokenApprovals(
+    //     address token0,
+    //     address token1,
+    //     address permitAddress
+    // ) public {
+    //     Currency currency0 = Currency.wrap(token0);
+    //     Currency currency1 = Currency.wrap(token1);
+    //     if (!currency0.isAddressZero()) {
+    //         // Inline ERC20 and permitManager calls
+    //         ERC20(token0).approve(permitAddress, type(uint256).max);
+    //         IAllowanceTransfer(permitAddress).approve(
+    //             token0, // token0 is already an address
+    //             address(posm),
+    //             type(uint160).max,
+    //             type(uint48).max
+    //         );
+    //     }
+    //     if (!currency1.isAddressZero()) {
+    //         ERC20(token1).approve(permitAddress, type(uint256).max);
+    //         IAllowanceTransfer(permitAddress).approve(
+    //             token1,
+    //             address(posm),
+    //             type(uint160).max,
+    //             type(uint48).max
+    //         );
+    //     }
+    // }
 }

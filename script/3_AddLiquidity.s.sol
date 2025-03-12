@@ -40,13 +40,43 @@ contract AddLiquidityScript is Script {
 
     function setUp() public {}
 
+    function approvePosmCurrency(
+        IPositionManager _posm,
+        Currency currency,
+        address permit2Address
+    ) internal {
+        IAllowanceTransfer permit2 = IAllowanceTransfer(
+            address(permit2Address)
+        );
+        // Because POSM uses permit2, we must execute 2 permits/approvals.
+        // 1. First, the caller must approve permit2 on the token.
+        ERC20(Currency.unwrap(currency)).approve(
+            permit2Address,
+            type(uint256).max
+        );
+        // 2. Then, the caller must approve POSM as a spender of permit2
+        permit2.approve(
+            Currency.unwrap(currency),
+            address(_posm),
+            type(uint160).max,
+            type(uint48).max
+        );
+    }
+
     function run() external {
+        uint256 deployerPrivateKey = vm.envUint("SIGNER_PRIVATE_KEY"); // Load private key from .env
+
         address dai = vm.envAddress("DAI_ADDRESS");
         address pooka = vm.envAddress("POOKA_ADDRESS");
-        address poolManagerAddress = vm.envAddress("POOL_MANAGER_ADDRESS");
-        address hookContractAddress = vm.envAddress("POOKA_HOOK_CONTRACT");
-        IHooks hookContract = IHooks(hookContractAddress);
-        IPoolManager poolManager = IPoolManager(poolManagerAddress);
+        // address poolManagerAddress = vm.envAddress("POOL_MANAGER_ADDRESS");
+        // address hookContractAddress = vm.envAddress("POOKA_HOOK_ADDRESS");
+        address lpRouterAddress = vm.envAddress(
+            "MODIFY_LIQUIDITY_ROUTER_ADDRESS"
+        );
+        address swapRouterAddress = vm.envAddress("SWAP_ROUTER_ADDRESS");
+
+        // IHooks hookContract = IHooks(hookContractAddress);
+        // IPoolManager poolManager = IPoolManager(poolManagerAddress);
 
         address positionManagerAddress = vm.envAddress(
             "POSITION_MANAGER_ADDRESS"
@@ -73,87 +103,72 @@ contract AddLiquidityScript is Script {
             token1Address = dai;
         }
 
-        PoolKey memory pool = PoolKey({
-            currency0: currency0,
-            currency1: currency1,
-            fee: lpFee,
-            tickSpacing: tickSpacing,
-            hooks: hookContract
-        });
+        // PoolKey memory pool = PoolKey({
+        //     currency0: currency0,
+        //     currency1: currency1,
+        //     fee: lpFee,
+        //     tickSpacing: tickSpacing,
+        //     hooks: hookContract
+        // });
 
-        (uint160 sqrtPriceX96, , , ) = poolManager.getSlot0(pool.toId());
+        // (uint160 sqrtPriceX96, , , ) = poolManager.getSlot0(pool.toId());
 
-        // Converts token amounts to liquidity units
-        uint128 liquidity = LiquidityAmounts.getLiquidityForAmounts(
-            sqrtPriceX96,
-            TickMath.getSqrtPriceAtTick(tickLower),
-            TickMath.getSqrtPriceAtTick(tickUpper),
-            token0Amount,
-            token1Amount
+        // // Converts token amounts to liquidity units
+        // uint128 liquidity = LiquidityAmounts.getLiquidityForAmounts(
+        //     sqrtPriceX96,
+        //     TickMath.getSqrtPriceAtTick(tickLower),
+        //     TickMath.getSqrtPriceAtTick(tickUpper),
+        //     token0Amount,
+        //     token1Amount
+        // );
+
+        // // slippage limits
+        // uint256 amount0Max = token0Amount + 1 wei;
+        // uint256 amount1Max = token1Amount + 1 wei;
+
+        // bytes memory hookData = new bytes(0);
+
+        // vm.startBroadcast();
+        // tokenApprovals(token0Address, token1Address, permitAddress, posm);
+        // vm.stopBroadcast();
+
+        // vm.startBroadcast();
+        // IPositionManager(address(posm)).mint(
+        //     pool,
+        //     tickLower,
+        //     tickUpper,
+        //     liquidity,
+        //     amount0Max,
+        //     amount1Max,
+        //     msg.sender,
+        //     block.timestamp + 60,
+        //     hookData
+        // );
+        // vm.stopBroadcast();
+
+        vm.startBroadcast(deployerPrivateKey); // Start broadcasting transactions
+
+        // approve the tokens to the routers
+        ERC20 token0 = ERC20(token0Address);
+        ERC20 token1 = ERC20(token1Address);
+
+        token0.approve(lpRouterAddress, type(uint256).max);
+        token1.approve(lpRouterAddress, type(uint256).max);
+        token0.approve(swapRouterAddress, type(uint256).max);
+        token1.approve(swapRouterAddress, type(uint256).max);
+        approvePosmCurrency(
+            posm,
+            Currency.wrap(address(token0Address)),
+            permitAddress
+        );
+        approvePosmCurrency(
+            posm,
+            Currency.wrap(address(token1Address)),
+            permitAddress
         );
 
-        // slippage limits
-        uint256 amount0Max = token0Amount + 1 wei;
-        uint256 amount1Max = token1Amount + 1 wei;
-
-        bytes memory hookData = new bytes(0);
-
-        vm.startBroadcast();
-        // address token0,
-        // address token1,
-        // address permitAddress,
-        // IPositionManager posm
-        tokenApprovals(token0Address, token1Address, permitAddress, posm);
-        vm.stopBroadcast();
-
-        vm.startBroadcast();
-        IPositionManager(address(posm)).mint(
-            pool,
-            tickLower,
-            tickUpper,
-            liquidity,
-            amount0Max,
-            amount1Max,
-            msg.sender,
-            block.timestamp + 60,
-            hookData
-        );
         vm.stopBroadcast();
     }
-
-    // allow the allowance manager to spend the tokens
-    // function tokenApprovals(
-    //     Currency currency0,
-    //     address token0,
-    //     Currency currency1,
-    //     address token1,
-    //     address permitAddress,
-    //     IPositionManager posm
-    // ) public {
-    //     ERC20 token0ERC20 = ERC20(token0);
-    //     ERC20 token1ERC20 = ERC20(token1);
-
-    //     IAllowanceTransfer permitManager = IAllowanceTransfer(permitAddress);
-
-    //     if (!currency0.isAddressZero()) {
-    //         token0ERC20.approve(address(permitManager), type(uint256).max);
-    //         permitManager.approve(
-    //             address(token0),
-    //             address(posm),
-    //             type(uint160).max,
-    //             type(uint48).max
-    //         );
-    //     }
-    //     if (!currency1.isAddressZero()) {
-    //         token1ERC20.approve(address(permitManager), type(uint256).max);
-    //         permitManager.approve(
-    //             address(token1),
-    //             address(posm),
-    //             type(uint160).max,
-    //             type(uint48).max
-    //         );
-    //     }
-    // }
 
     function tokenApprovals(
         address token0,

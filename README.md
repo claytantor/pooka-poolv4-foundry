@@ -108,6 +108,11 @@ $ forge test -vvv
 
 # Deploying the Contracts via Anvil
 
+rn anvil
+```shell
+$ anvil
+```
+
 1. **Deploy the Uniswap V4 Infra and the DAI Token**:
    ```shell
    $ forge script script/anvil/0_DeployUniswapV4.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
@@ -131,7 +136,7 @@ $ forge test -vvv
 
 5. **Adjust the Warchest Liquidity**:
    ```shell
-   $ forge script script/script/3_AddLiquidity.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
+   $ forge script script/3_AddLiquidity.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
    ```
 
 

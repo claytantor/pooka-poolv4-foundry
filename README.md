@@ -129,14 +129,10 @@ $ anvil
    $ forge script script/1_DeployPookaHook.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
    ```
 
-4. **Create the Uniswap V4 Pool**:
+4. **Create the Uniswap V4 Pool (anvil version)**:
    ```shell
-   $ forge script script/2_CreatePool.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
+   $ forge script script/anvil/3_CreatePoolAndLiquidity.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
    ```
 
-5. **Adjust the Warchest Liquidity**:
-   ```shell
-   $ forge script script/3_AddLiquidity.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
-   ```
 
 

@@ -4,7 +4,7 @@ pragma solidity ^0.8.17;
 import "forge-std/Script.sol";
 import "forge-std/console.sol";
 
-import {EasyPosm} from "../src/EasyPosm.sol";
+import {EasyPosm} from "../../src/EasyPosm.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {CurrencyLibrary, Currency} from "v4-core/types/Currency.sol";
@@ -20,23 +20,28 @@ import {PoolSwapTest} from "v4-core/test/PoolSwapTest.sol";
 import {PoolModifyLiquidityTest} from "v4-core/test/PoolModifyLiquidityTest.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract AddLiquidityScript is Script {
+contract CreatePoolAndLiquidity is Script {
     using CurrencyLibrary for Currency;
     using EasyPosm for IPositionManager;
     using StateLibrary for IPoolManager;
+
+    /////////////////////////////////////
+    // --- Parameters to Configure --- //
+    /////////////////////////////////////
 
     // --- pool configuration --- //
     // fees paid by swappers that accrue to liquidity providers
     uint24 lpFee = 3000; // 0.30%
     int24 tickSpacing = 60;
 
+    // starting price of the pool, in sqrtPriceX96
+    uint160 startingPrice = 79228162514264337593543950336; // floor(sqrt(1) * 2^96)
+
     // --- liquidity position configuration --- //
     uint256 public token0Amount = 1e18;
     uint256 public token1Amount = 1e18;
 
     // range of the position
-    // int24 tickLower = -600; // must be a multiple of tickSpacing
-    // int24 tickUpper = 600;
     int24 tickLower = TickMath.minUsableTick(tickSpacing);
     int24 tickUpper = TickMath.maxUsableTick(tickSpacing);
     /////////////////////////////////////
@@ -78,19 +83,18 @@ contract AddLiquidityScript is Script {
         address pooka = vm.envAddress("POOKA_ADDRESS");
         address poolManagerAddress = vm.envAddress("POOL_MANAGER_ADDRESS");
         address hookContractAddress = vm.envAddress("POOKA_HOOK_ADDRESS");
+        IHooks hookContract = IHooks(hookContractAddress);
         address lpRouterAddress = vm.envAddress(
             "MODIFY_LIQUIDITY_ROUTER_ADDRESS"
         );
         address swapRouterAddress = vm.envAddress("SWAP_ROUTER_ADDRESS");
 
-        IHooks hookContract = IHooks(hookContractAddress);
-        poolManager = IPoolManager(poolManagerAddress);
-
+        // position manager
         address positionManagerAddress = vm.envAddress(
             "POSITION_MANAGER_ADDRESS"
         );
-
         posm = PositionManager(payable(positionManagerAddress));
+
         // make the liquidity position router
         lpRouter = new PoolModifyLiquidityTest(poolManager);
         swapRouter = new PoolSwapTest(poolManager);
@@ -115,11 +119,20 @@ contract AddLiquidityScript is Script {
             token1Address = dai;
         }
 
-        vm.startBroadcast(deployerPrivateKey); // Start broadcasting transactions
+        PoolKey memory poolKey = PoolKey({
+            currency0: currency0,
+            currency1: currency1,
+            fee: lpFee,
+            tickSpacing: tickSpacing,
+            hooks: hookContract
+        });
 
         // approve the tokens to the routers
         ERC20 token0 = ERC20(token0Address);
         ERC20 token1 = ERC20(token1Address);
+
+        vm.startBroadcast(deployerPrivateKey); // Start broadcasting transactions
+        IPoolManager(poolManagerAddress).initialize(poolKey, startingPrice);
 
         token0.approve(lpRouterAddress, type(uint256).max);
         token1.approve(lpRouterAddress, type(uint256).max);
@@ -136,15 +149,15 @@ contract AddLiquidityScript is Script {
             permitAddress
         );
 
-        // get the pool from the Pool manager
-        // Construct the PoolKey
-        PoolKey memory poolKey = PoolKey({
-            currency0: Currency.wrap(token0Address), // Convert token address to Currency type
-            currency1: Currency.wrap(token1Address),
-            fee: lpFee,
-            tickSpacing: 60, // Example tick spacing (depends on fee tier)
-            hooks: hookContract // Convert the hook address
-        });
+        // // get the pool from the Pool manager
+        // // Construct the PoolKey
+        // PoolKey memory poolKey = PoolKey({
+        //     currency0: Currency.wrap(token0Address), // Convert token address to Currency type
+        //     currency1: Currency.wrap(token1Address),
+        //     fee: lpFee,
+        //     tickSpacing: 60, // Example tick spacing (depends on fee tier)
+        //     hooks: hookContract // Convert the hook address
+        // });
 
         // provisions full-range liquidity twice. Two different periphery contracts used for example purposes.
         IPoolManager.ModifyLiquidityParams memory liqParams = IPoolManager

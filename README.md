@@ -134,5 +134,10 @@ $ anvil
    $ forge script script/anvil/3_CreatePoolAndLiquidity.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
    ```
 
+5. **Swap POOKA**:
+   ```shell
+   $ forge script script/anvil/6_SwapPooka.sol --rpc-url http://127.0.0.1:8545 --broadcast
+   ```
+
 
 

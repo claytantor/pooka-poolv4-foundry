@@ -17,6 +17,8 @@ contract LiquidityProvider is IUnlockCallback {
         IERC20 token1;
         uint256 amount0;
         uint256 amount1;
+        PoolKey poolKey;
+        IPoolManager.ModifyLiquidityParams params;
     }
 
     mapping(bytes32 => CallbackData) public callbackDataStore;
@@ -39,11 +41,10 @@ contract LiquidityProvider is IUnlockCallback {
             token0: IERC20(Currency.unwrap(poolKey.currency0)),
             token1: IERC20(Currency.unwrap(poolKey.currency1)),
             amount0: amount0,
-            amount1: amount1
+            amount1: amount1,
+            poolKey: poolKey,
+            params: params
         });
-
-        // Directly call modifyLiquidity on PoolManager
-        poolManager.modifyLiquidity(poolKey, params, abi.encode(callbackKey));
     }
 
     function unlockCallback(
@@ -65,6 +66,13 @@ contract LiquidityProvider is IUnlockCallback {
             cbData.user,
             address(poolManager),
             cbData.amount1
+        );
+
+        // Directly call modifyLiquidity on PoolManager
+        poolManager.modifyLiquidity(
+            cbData.poolKey,
+            cbData.params,
+            abi.encode(callbackKey)
         );
 
         // Clear storage

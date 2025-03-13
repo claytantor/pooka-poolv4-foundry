@@ -115,8 +115,8 @@ $ anvil
 
 1. **Deploy the Uniswap V4 Infra and the DAI Token**:
    ```shell
-   $ forge script script/anvil/0_DeployUniswapV4.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
-   $ forge script script/anvil/1_DeployDai.s.sol --tc DeployDAI --rpc-url http://127.0.0.1:8545 --broadcast
+   forge script script/anvil/0_DeployUniswapV4.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
+   forge script script/anvil/1_DeployDai.s.sol --tc DeployDAI --rpc-url http://127.0.0.1:8545 --broadcast
    ```
 
 2. **Deploy the Pooka Token**:

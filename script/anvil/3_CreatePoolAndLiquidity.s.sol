@@ -241,22 +241,11 @@ contract CreatePoolAndLiquidity is Script {
         console.log("Token0 balance: ", token0Balance, token0Address);
         console.log("Token1 balance: ", token1Balance, token1Address);
 
+        // CANT GET THIS TO WORK
         // // provisions full-range liquidity
         // IPoolManager.ModifyLiquidityParams memory liqParams = IPoolManager
         //     .ModifyLiquidityParams(tickLower, tickUpper, 100 ether, 0);
         // lpRouter.modifyLiquidity(poolKey, liqParams, "");
-
-        // Call the getPoolState function on the Pool Manager.
-        // (
-        //     int24 currentTick,
-        //     uint160 sqrtPriceX96,
-        //     uint128 liquidity
-        // ) = poolManager.getPoolState(poolKey);
-
-        // Log the results.
-        // console.log("Current Tick:", currentTick);
-        // console.log("sqrtPriceX96:", sqrtPriceX96);
-        // console.log("Liquidity:", liquidity);
 
         // Get current tick
         TickGetter tickGetter = new TickGetter(poolManager);
@@ -269,19 +258,6 @@ contract CreatePoolAndLiquidity is Script {
             tickLower,
             tickUpper,
             100 ether // liquidityDelta
-        );
-
-        // Before: Directly calling modifyLiquidity
-        // Now: Initiate lock first
-        poolManager.unlock(
-            abi.encode(
-                CallbackData(
-                    100 ether,
-                    poolKey.currency0,
-                    poolKey.currency1,
-                    vm.addr(deployerPrivateKey)
-                )
-            )
         );
 
         // Execute liquidity modification

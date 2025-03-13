@@ -16,12 +16,28 @@ import {PoolSwapTest} from "v4-core/test/PoolSwapTest.sol";
 import {PoolDonateTest} from "v4-core/test/PoolDonateTest.sol";
 import {PoolModifyLiquidityTest} from "v4-core/test/PoolModifyLiquidityTest.sol";
 
+import {UniversalRouter} from "universal-router/contracts/UniversalRouter.sol";
+import {UnsupportedProtocol} from "universal-router/contracts/deploy/UnsupportedProtocol.sol";
+
+import {RouterParameters} from "universal-router/contracts/base/RouterImmutables.sol";
+
 import "forge-std/console.sol";
 
 // test utils
 import {DeployPermit2} from "../../test/utils/DeployPermit2.sol";
 
 contract DeployUniswapV4 is Script, DeployPermit2 {
+    RouterParameters internal params;
+    UniversalRouter internal universalRouter;
+    address internal unsupported;
+
+    address constant UNSUPPORTED_PROTOCOL = address(0);
+    bytes32 constant BYTES32_ZERO = bytes32(0);
+
+    function mapUnsupported(address protocol) internal view returns (address) {
+        return protocol == address(0) ? unsupported : protocol;
+    }
+
     // Deploy all core contracts and test helpers
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("SIGNER_PRIVATE_KEY");
@@ -53,6 +69,56 @@ contract DeployUniswapV4 is Script, DeployPermit2 {
             IPoolManager(address(poolManager))
         );
 
+        // deploy the universal router
+        // address permit2;
+        // address weth9;
+        // address seaportV1_5;
+        // address seaportV1_4;
+        // address openseaConduit;
+        // address nftxZap;
+        // address x2y2;
+        // address foundation;
+        // address sudoswap;
+        // address elementMarket;
+        // address nft20Zap;
+        // address cryptopunks;
+        // address looksRareV2;
+        // address routerRewardsDistributor;
+        // address looksRareRewardsDistributor;
+        // address looksRareToken;
+        // address v2Factory;
+        // address v3Factory;
+        // bytes32 pairInitCodeHash;
+        // bytes32 poolInitCodeHash;
+
+        params = RouterParameters({
+            permit2: address(permit2),
+            weth9: mapUnsupported(params.weth9),
+            seaportV1_5: mapUnsupported(address(0)),
+            seaportV1_4: mapUnsupported(address(0)),
+            openseaConduit: mapUnsupported(address(0)),
+            nftxZap: mapUnsupported(address(0)),
+            x2y2: mapUnsupported(address(0)),
+            foundation: mapUnsupported(address(0)),
+            sudoswap: mapUnsupported(address(0)),
+            elementMarket: mapUnsupported(address(0)),
+            nft20Zap: mapUnsupported(address(0)),
+            cryptopunks: mapUnsupported(address(0)),
+            looksRareV2: mapUnsupported(address(0)),
+            routerRewardsDistributor: mapUnsupported(address(0)),
+            looksRareRewardsDistributor: mapUnsupported(address(0)),
+            looksRareToken: mapUnsupported(address(0)),
+            v2Factory: mapUnsupported(params.v2Factory),
+            v3Factory: mapUnsupported(params.v3Factory),
+            pairInitCodeHash: params.pairInitCodeHash,
+            poolInitCodeHash: params.poolInitCodeHash
+            // v4PoolManager: address(poolManager)
+            // v3NFTPositionManager: mapUnsupported(address(0)),
+            // v4PositionManager: address(posm),
+        });
+
+        universalRouter = new UniversalRouter(params);
+
         vm.stopBroadcast();
 
         // Log addresses for frontend use
@@ -69,5 +135,7 @@ contract DeployUniswapV4 is Script, DeployPermit2 {
             "MODIFY_LIQUIDITY_ROUTER_ADDRESS=",
             address(modifyLiquidityRouter)
         );
+        console.log("PERMIT2_ADDRESS=", address(permit2));
+        console.log("UNIVERSAL_ROUTER_ADDRESS=", address(universalRouter));
     }
 }

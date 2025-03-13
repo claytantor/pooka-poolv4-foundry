@@ -189,60 +189,18 @@ contract SwapPooka is Script {
 
         vm.startBroadcast(deployerPrivateKey); // Start broadcasting transactions
 
-        // token0.approve(lpRouterAddress, 0);
-        // token0.approve(lpRouterAddress, 1000 ether);
-        // token1.approve(lpRouterAddress, 0);
-        // token1.approve(lpRouterAddress, 1000 ether);
-        // token0.approve(poolManagerAddress, 0);
-        // token0.approve(poolManagerAddress, type(uint256).max);
-        // token1.approve(poolManagerAddress, 0);
-        // token1.approve(poolManagerAddress, type(uint256).max);
-
-        // uint256 allowance0 = token0.allowance(
-        //     vm.addr(deployerPrivateKey),
-        //     lpRouterAddress
-        // );
-        // uint256 allowance1 = token1.allowance(
-        //     vm.addr(deployerPrivateKey),
-        //     lpRouterAddress
-        // );
-        // console.log("Token0 allowance lprouter:", allowance0);
-        // console.log("Token1 allowance: lprouter", allowance1);
-
-        // // Log allowances for debugging
-        // uint256 allowance0Pool = token0.allowance(
-        //     vm.addr(deployerPrivateKey),
-        //     poolManagerAddress
-        // );
-        // uint256 allowance1Pool = token1.allowance(
-        //     vm.addr(deployerPrivateKey),
-        //     poolManagerAddress
-        // );
-        // console.log("Token0 allowance to PoolManager:", allowance0Pool);
-        // console.log("Token1 allowance to PoolManager:", allowance1Pool);
-
-        // token0.approve(swapRouterAddress, type(uint256).max);
-        // token1.approve(swapRouterAddress, type(uint256).max);
-        // approvePosmCurrency(
-        //     posm,
-        //     Currency.wrap(address(token0Address)),
-        //     permitAddress
-        // );
-        // approvePosmCurrency(
-        //     posm,
-        //     Currency.wrap(address(token1Address)),
-        //     permitAddress
-        // );
-
         // get the current balance of the tokens
         uint256 token0Balance = token0.balanceOf(vm.addr(deployerPrivateKey));
         uint256 token1Balance = token1.balanceOf(vm.addr(deployerPrivateKey));
         console.log("Token0 balance: ", token0Balance, token0Address);
         console.log("Token1 balance: ", token1Balance, token1Address);
 
+        // Pass the owner's address in hook data so that the hook recognizes the owner.
+        bytes memory hookData = abi.encode(vm.addr(deployerPrivateKey));
+
         // swap some tokens
         bool zeroForOne = true;
-        int256 amountSpecified = 0.01 ether;
+        int256 amountSpecified = 1.01 ether;
         IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
             zeroForOne: zeroForOne,
             amountSpecified: amountSpecified,
@@ -252,7 +210,7 @@ contract SwapPooka is Script {
         });
         PoolSwapTest.TestSettings memory testSettings = PoolSwapTest
             .TestSettings({takeClaims: false, settleUsingBurn: false});
-        swapRouter.swap(poolKey, params, testSettings, "");
+        swapRouter.swap(poolKey, params, testSettings, hookData);
 
         vm.stopBroadcast();
     }

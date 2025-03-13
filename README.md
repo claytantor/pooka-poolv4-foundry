@@ -94,11 +94,15 @@ This implementation creates a hybrid system where:
 
 This setup creates a liquidity pool where POOKA's value is directly tied to the owner's DAI balance, functioning as a managed "warchest" with dynamic token valuation.
 
+
 # Setting up Dependencies
 ```shell
 $ forge install OpenZeppelin/openzeppelin-contracts@5.2.0
+$ forge install uniswap/v2-core
+$ forge install uniswap/v3-core
 $ forge install uniswap/v4-core
 $ forge install uniswap/v4-periphery
+$ forge install uniswap/universal-router
 ```
 
 # Test the Contracts
@@ -117,6 +121,13 @@ $ anvil
    ```shell
    forge script script/anvil/0_DeployUniswapV4.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
    forge script script/anvil/1_DeployDai.s.sol --tc DeployDAI --rpc-url http://127.0.0.1:8545 --broadcast
+
+   forge script --broadcast \
+   --rpc-url <RPC-URL> \
+   --private-key <PRIVATE_KEY> \
+   --sig 'run()' \
+   script/deployParameters/Deploy<network>.s.sol:Deploy<network>
+
    ```
 
 2. **Deploy the Pooka Token**:

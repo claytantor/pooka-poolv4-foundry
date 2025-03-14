@@ -122,11 +122,6 @@ $ anvil
    forge script script/anvil/0_DeployUniswapV4.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
    forge script script/anvil/1_DeployDai.s.sol --tc DeployDAI --rpc-url http://127.0.0.1:8545 --broadcast
 
-   forge script --broadcast \
-   --rpc-url <RPC-URL> \
-   --private-key <PRIVATE_KEY> \
-   --sig 'run()' \
-   script/deployParameters/Deploy<network>.s.sol:Deploy<network>
 
    ```
 
@@ -136,6 +131,8 @@ $ anvil
    ```
 
 3. **Deploy the Pooka Valuation Hook**:
+   always run this script if you have had to redeploy the Uniswap V4 infrastructure
+
    ```shell
    $ forge script script/1_DeployPookaHook.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
    ```

@@ -150,13 +150,6 @@ contract SwapPooka is Script {
         swapRouter = new PoolSwapTest(poolManager);
         console.log("swapRouter: ", address(swapRouter));
 
-        // address permitAddress = vm.envAddress("PERMIT2_ADDRESS");
-
-        // // Deploy helper
-        // LiquidityProvider liquidityProvider = new LiquidityProvider(
-        //     poolManager
-        // );
-
         Currency currency0;
         Currency currency1;
         address token0Address;

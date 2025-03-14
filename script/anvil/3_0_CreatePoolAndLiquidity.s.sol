@@ -7,6 +7,7 @@ import "forge-std/console.sol";
 import {EasyPosm} from "../../src/EasyPosm.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
+import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {CurrencyLibrary, Currency} from "v4-core/types/Currency.sol";
 import {IPositionManager} from "v4-periphery/interfaces/IPositionManager.sol";
 import {PositionManager} from "v4-periphery/PositionManager.sol";
@@ -19,6 +20,7 @@ import {Hooks} from "v4-core/libraries/Hooks.sol";
 import {PoolSwapTest} from "v4-core/test/PoolSwapTest.sol";
 import {PoolModifyLiquidityTest} from "v4-core/test/PoolModifyLiquidityTest.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {LiquidityProvider} from "../../src/LiquidityProvider.sol";
 import {TickGetter} from "../../src/TickGetter.sol";
 
@@ -51,8 +53,10 @@ contract CreatePoolAndLiquidity is Script {
     uint256 public token1Amount = 1e18;
 
     // range of the position
-    int24 tickLower = TickMath.minUsableTick(tickSpacing);
-    int24 tickUpper = TickMath.maxUsableTick(tickSpacing);
+    // int24 tickLower = TickMath.minUsableTick(tickSpacing);
+    // int24 tickUpper = TickMath.maxUsableTick(tickSpacing);
+    int24 tickLower = -600;
+    int24 tickUpper = 600;
     /////////////////////////////////////
 
     IPoolManager poolManager;
@@ -118,6 +122,42 @@ contract CreatePoolAndLiquidity is Script {
         return (amount0L, amount1L);
     }
 
+    // // Helper function to calculate expected deposits
+    // function calculateExpectedDeposits(
+    //     PoolKey memory key,
+    //     int24 tickLowerVal,
+    //     int24 tickUpperVal,
+    //     int256 liquidityDelta
+    // ) internal view returns (uint256 amount0, uint256 amount1) {
+    //     // Implementation depends on your math library
+    //     // Example using TickMath:
+
+    //     // (uint160 sqrtPriceX96, , , ) = StateLibrary.getSlot0(key);
+    //     (amount0, amount1) = LiquidityAmounts.getAmountsForLiquidity(
+    //         sqrtPriceX96,
+    //         TickMath.getSqrtRatioAtTick(tickLowerVal),
+    //         TickMath.getSqrtRatioAtTick(tickUpperVal),
+    //         uint128(liquidityDelta)
+    //     );
+    // }
+
+    function safeInitializePool(
+        IPoolManager pms,
+        PoolKey memory poolKey,
+        uint160 startingPriceTick0
+    ) internal {
+        // Convert PoolKey to PoolId
+        PoolId poolId = PoolIdLibrary.toId(poolKey);
+
+        // Get current pool state
+        (uint160 sqrtPriceX96, , , ) = StateLibrary.getSlot0(pms, poolId);
+
+        // Only initialize if pool hasn't been created yet
+        if (sqrtPriceX96 == 0) {
+            poolManager.initialize(poolKey, startingPriceTick0);
+        }
+    }
+
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("SIGNER_PRIVATE_KEY"); // Load private key from .env
 
@@ -145,10 +185,10 @@ contract CreatePoolAndLiquidity is Script {
 
         // make the liquidity position router
         lpRouter = new PoolModifyLiquidityTest(poolManager);
-        console.log("lpRouter: ", address(lpRouter));
+        console.log("MODIFY_LIQUIDITY_ROUTER_ADDRESS=", address(lpRouter));
 
         swapRouter = new PoolSwapTest(poolManager);
-        console.log("swapRouter: ", address(swapRouter));
+        console.log("SWAP_ROUTER_ADDRESS=", address(swapRouter));
 
         address permitAddress = vm.envAddress("PERMIT2_ADDRESS");
 
@@ -190,7 +230,10 @@ contract CreatePoolAndLiquidity is Script {
         vm.startBroadcast(deployerPrivateKey); // Start broadcasting transactions
 
         // create the pool
-        poolManager.initialize(poolKey, startingPrice);
+        // poolManager.initialize(poolKey, startingPrice);
+        // Safely initialize if needed
+        uint160 startingPriceT0 = TickMath.getSqrtPriceAtTick(0); // Initialize at tick 0
+        safeInitializePool(poolManager, poolKey, startingPriceT0);
 
         token0.approve(lpRouterAddress, 0);
         token0.approve(lpRouterAddress, 1000 ether);
@@ -240,8 +283,8 @@ contract CreatePoolAndLiquidity is Script {
         // get the current balance of the tokens
         uint256 token0Balance = token0.balanceOf(vm.addr(deployerPrivateKey));
         uint256 token1Balance = token1.balanceOf(vm.addr(deployerPrivateKey));
-        console.log("Token0 balance: ", token0Balance, token0Address);
-        console.log("Token1 balance: ", token1Balance, token1Address);
+        console.log("Signer Token0 balance: ", token0Balance, token0Address);
+        console.log("Signer Token1 balance: ", token1Balance, token1Address);
 
         // CANT GET THIS TO WORK
         // // provisions full-range liquidity
@@ -249,10 +292,28 @@ contract CreatePoolAndLiquidity is Script {
         //     .ModifyLiquidityParams(tickLower, tickUpper, 100 ether, 0);
         // lpRouter.modifyLiquidity(poolKey, liqParams, "");
 
-        // Get current tick
-        TickGetter tickGetter = new TickGetter(poolManager);
-        int24 currentTick = tickGetter.getCurrentTick(poolKey);
-        console.log("Current Tick:", currentTick);
+        // 1. Prepare liquidity parameters
+        // int24 tickLower = -600;
+        // int24 tickUpper = 600;
+        // int256 liquidityDelta = int256(1000 ether);
+        // bytes32 positionId = keccak256(
+        //     abi.encode(address(liquidityProvider), tickLower, tickUpper)
+        // );
+
+        // 2. Get initial state
+        // (uint128 initialLiquidity, , , ) = poolManager.positions(positionId);
+        uint256 initialBalance0 = IERC20(Currency.unwrap(poolKey.currency0))
+            .balanceOf(address(poolManager));
+        uint256 initialBalance1 = IERC20(Currency.unwrap(poolKey.currency1))
+            .balanceOf(address(poolManager));
+
+        console.log("poolManager Token0 balance before: ", initialBalance0);
+        console.log("poolManager Token1 balance before: ", initialBalance1);
+
+        (, int24 currentTick, , ) = StateLibrary.getSlot0(
+            poolManager,
+            poolKey.toId()
+        );
 
         // Calculate required amounts based on position
         (uint256 amount0, uint256 amount1) = calculateAmounts(
@@ -275,32 +336,58 @@ contract CreatePoolAndLiquidity is Script {
             amount1
         );
 
-        // posm.mint(
+        vm.stopBroadcast();
+
+        uint256 finalBalance0 = IERC20(Currency.unwrap(poolKey.currency0))
+            .balanceOf(address(poolManager));
+        uint256 finalBalance1 = IERC20(Currency.unwrap(poolKey.currency1))
+            .balanceOf(address(poolManager));
+
+        console.log("poolManager Token0 balance after: ", finalBalance0);
+        console.log("poolManager Token1 balance after: ", finalBalance1);
+
+        // // Assert liquidity increased
+        // assertEq(
+        //     uint256(int256(newLiquidity)),
+        //     uint256(int256(initialLiquidity)) + uint256(liquidityDelta),
+        //     "Liquidity not added"
+        // );
+
+        // // Assert token balances changed
+        // assertGt(finalBalance0, initialBalance0, "Token0 not deposited");
+        // assertGt(finalBalance1, initialBalance1, "Token1 not deposited");
+
+        // Verify returned amounts match expectations
+        // (uint256 expected0, uint256 expected1) = calculateExpectedDeposits(
         //     poolKey,
         //     tickLower,
         //     tickUpper,
-        //     100e18,
-        //     10_000e18,
-        //     10_000e18,
-        //     msg.sender,
-        //     block.timestamp + 300,
-        //     ""
+        //     liquidityDelta
         // );
 
-        // // swap some tokens
-        // bool zeroForOne = true;
-        // int256 amountSpecified = 10 ether;
-        // IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
-        //     zeroForOne: zeroForOne,
-        //     amountSpecified: amountSpecified,
-        //     sqrtPriceLimitX96: zeroForOne
-        //         ? TickMath.MIN_SQRT_PRICE + 1
-        //         : TickMath.MAX_SQRT_PRICE - 1 // unlimited impact
-        // });
-        // PoolSwapTest.TestSettings memory testSettings = PoolSwapTest
-        //     .TestSettings({takeClaims: false, settleUsingBurn: false});
-        // swapRouter.swap(poolKey, params, testSettings, "");
+        // (uint160 sqrtPriceX96, , , ) = StateLibrary.getSlot0(
+        //     poolManager,
+        //     poolKey
+        // );
 
-        vm.stopBroadcast();
+        // (amount0, amount1) = LiquidityAmounts.getAmountsForLiquidity(
+        //     sqrtPriceX96,
+        //     TickMath.getSqrtRatioAtTick(tickLowerVal),
+        //     TickMath.getSqrtRatioAtTick(tickUpperVal),
+        //     uint128(liquidityDelta)
+        // );
+
+        // assertApproxEqRel(
+        //     amount0,
+        //     expected0,
+        //     0.01e18,
+        //     "Token0 amount mismatch"
+        // ); // 1% tolerance
+        // assertApproxEqRel(
+        //     amount1,
+        //     expected1,
+        //     0.01e18,
+        //     "Token1 amount mismatch"
+        // );
     }
 }

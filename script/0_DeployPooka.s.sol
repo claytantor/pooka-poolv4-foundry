@@ -18,6 +18,6 @@ contract DeployPooka is Script {
 
         vm.stopBroadcast();
 
-        console.log("Pooka Token deployed to:", address(Pooka));
+        console.log("POOKA_ADDRESS=", address(Pooka));
     }
 }

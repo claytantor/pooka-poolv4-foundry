@@ -54,7 +54,7 @@ contract DeployPookaHook is Script {
             "DeployPookaHook: hook address mismatch"
         );
 
-        console.log("PookaValuationHook deployed to:", address(pvh));
+        console.log("POOKA_HOOK_ADDRESS=", address(pvh));
 
         vm.stopBroadcast();
     }

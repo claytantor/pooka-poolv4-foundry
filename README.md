@@ -120,9 +120,8 @@ $ anvil
 1. **Deploy the Uniswap V4 Infra and the DAI Token**:
    ```shell
    forge script script/anvil/0_DeployUniswapV4.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
-   forge script script/anvil/1_DeployDai.s.sol --tc DeployDAI --rpc-url http://127.0.0.1:8545 --broadcast
-
-
+   forge script script/anvil/1_0_DeployDai.s.sol --tc DeployDAI --rpc-url http://127.0.0.1:8545 --broadcast
+   forge script script/anvil/1_1_GetDaiBalance.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
    ```
 
 2. **Deploy the Pooka Token**:
@@ -139,12 +138,23 @@ $ anvil
 
 4. **Create the Uniswap V4 Pool (anvil version)**:
    ```shell
-   $ forge script script/anvil/3_CreatePoolAndLiquidity.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
+   $ forge script script/anvil/3_0_CreatePoolAndLiquidity.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
+   $ forge script script/anvil/3_1_GetPoolInfo.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
+   
    ```
 
 5. **Swap POOKA**:
+
+   approach 1
+
    ```shell
    $ forge script script/anvil/6_SwapPooka.sol --rpc-url http://127.0.0.1:8545 --broadcast
+   ```
+
+   approach 2
+
+   ```shell
+   $ forge script script/anvil/7_SwapNew.s.sol http://127.0.0.1:8545 --broadcast
    ```
 
 

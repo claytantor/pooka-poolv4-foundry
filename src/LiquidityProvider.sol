@@ -35,19 +35,6 @@ contract LiquidityProvider is IUnlockCallback {
         uint256 amount0,
         uint256 amount1
     ) external {
-        // bytes32 callbackKey = keccak256(abi.encode(poolKey, params));
-
-        // Store callback data first
-        // callbackDataStore[callbackKey] = CallbackData({
-        //     user: msg.sender,
-        //     token0: IERC20(Currency.unwrap(poolKey.currency0)),
-        //     token1: IERC20(Currency.unwrap(poolKey.currency1)),
-        //     amount0: amount0,
-        //     amount1: amount1,
-        //     poolKey: poolKey,
-        //     params: params
-        // });
-
         poolManager.unlock(
             abi.encode(
                 CallbackData(
@@ -72,9 +59,27 @@ contract LiquidityProvider is IUnlockCallback {
         CallbackData memory cbData = abi.decode(rawData, (CallbackData));
 
         console.log("Unlocking callback for user: ", cbData.user);
+        //log amounts
+        console.log("Amount0: ", cbData.amount0);
+        console.log("Amount1: ", cbData.amount1);
 
         IERC20 token0 = IERC20(cbData.token0);
         IERC20 token1 = IERC20(cbData.token1);
+
+        token0.approve(address(cbData.user), cbData.amount0);
+        token1.approve(address(cbData.user), cbData.amount1);
+
+        // Log allowances for debugging
+        uint256 allowance0Pool = token0.allowance(
+            address(cbData.user),
+            address(poolManager)
+        );
+        uint256 allowance1Pool = token1.allowance(
+            address(cbData.user),
+            address(poolManager)
+        );
+        console.log("LPUser Token0 allowance to PoolManager:", allowance0Pool);
+        console.log("LPUser Token1 allowance to PoolManager:", allowance1Pool);
 
         // Transfer tokens to PoolManager
         token0.transferFrom(cbData.user, address(poolManager), cbData.amount0);

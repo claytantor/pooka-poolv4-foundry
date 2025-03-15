@@ -27,60 +27,6 @@ contract LiquidityProvider is IUnlockCallback {
         poolManager = _poolManager;
     }
 
-    // function modifyLiquidity(
-    //     PoolKey memory poolKey,
-    //     IPoolManager.ModifyLiquidityParams memory params,
-    //     uint256 amount0,
-    //     uint256 amount1
-    // ) external {
-    //     bytes32 callbackKey = keccak256(abi.encode(poolKey, params));
-
-    //     // Store callback data first
-    //     callbackDataStore[callbackKey] = CallbackData({
-    //         user: msg.sender,
-    //         token0: IERC20(Currency.unwrap(poolKey.currency0)),
-    //         token1: IERC20(Currency.unwrap(poolKey.currency1)),
-    //         amount0: amount0,
-    //         amount1: amount1,
-    //         poolKey: poolKey,
-    //         params: params
-    //     });
-    // }
-
-    // function unlockCallback(
-    //     bytes calldata rawData
-    // ) external returns (bytes memory) {
-    //     require(msg.sender == address(poolManager), "Unauthorized");
-
-    //     // Retrieve stored data
-    //     bytes32 callbackKey = abi.decode(rawData, (bytes32));
-    //     CallbackData memory cbData = callbackDataStore[callbackKey];
-
-    //     // Transfer tokens to PoolManager
-    //     cbData.token0.transferFrom(
-    //         cbData.user,
-    //         address(poolManager),
-    //         cbData.amount0
-    //     );
-    //     cbData.token1.transferFrom(
-    //         cbData.user,
-    //         address(poolManager),
-    //         cbData.amount1
-    //     );
-
-    //     // Directly call modifyLiquidity on PoolManager
-    //     poolManager.modifyLiquidity(
-    //         cbData.poolKey,
-    //         cbData.params,
-    //         abi.encode(callbackKey)
-    //     );
-
-    //     // Clear storage
-    //     delete callbackDataStore[callbackKey];
-
-    //     return "";
-    // }
-
     function modifyLiquidity(
         PoolKey memory poolKey,
         IPoolManager.ModifyLiquidityParams memory params,

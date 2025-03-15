@@ -196,6 +196,7 @@ contract CreatePoolAndLiquidity is Script {
         LiquidityProvider liquidityProvider = new LiquidityProvider(
             poolManager
         );
+        console.log("LIQUIDITY_PROVIDER_ADDRESS=", address(liquidityProvider));
 
         Currency currency0;
         Currency currency1;

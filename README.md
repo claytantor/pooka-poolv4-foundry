@@ -128,5 +128,7 @@ export ETHERSCAN_API_KEY="YOUR_ETHERSCAN_API_KEY"
    $ forge script script/2_CreatePool.s.sol --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast
    ```
 
+   From here use the Uniswap tool to create liquidity for the pool and test the swap functionality.
+
 
 

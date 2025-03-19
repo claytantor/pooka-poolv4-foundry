@@ -9,7 +9,7 @@ import {PookaToken} from "../src/PookaToken.sol";
 /// @notice Deploys the Pooka ERC20 token to the Sepolia testnet.
 contract DeployPooka is Script {
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint("SIGNER_PRIVATE_KEY"); // Load private key from .env
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY"); // Load private key from .env
 
         vm.startBroadcast(deployerPrivateKey); // Start broadcasting transactions
 

@@ -66,8 +66,8 @@ contract LiquidityProvider is IUnlockCallback {
         IERC20 token0 = IERC20(cbData.token0);
         IERC20 token1 = IERC20(cbData.token1);
 
-        token0.approve(address(cbData.user), cbData.amount0);
-        token1.approve(address(cbData.user), cbData.amount1);
+        // token0.approve(address(cbData.user), cbData.amount0);
+        // token1.approve(address(cbData.user), cbData.amount1);
 
         // Log allowances for debugging
         uint256 allowance0Pool = token0.allowance(
@@ -85,6 +85,9 @@ contract LiquidityProvider is IUnlockCallback {
         token0.transferFrom(cbData.user, address(poolManager), cbData.amount0);
         token1.transferFrom(cbData.user, address(poolManager), cbData.amount1);
 
+        poolManager.settle();
+        // poolManager.settleFor(Currency.unwrap(cbData.poolKey.currency1));
+
         // Directly call modifyLiquidity on PoolManager
         poolManager.modifyLiquidity(
             cbData.poolKey,
@@ -92,56 +95,7 @@ contract LiquidityProvider is IUnlockCallback {
             new bytes(0)
         );
 
-        return "";
+        // return "";
+        return bytes("");
     }
-
-    // function modifyLiquidity(
-    //     PoolKey memory poolKey,
-    //     IPoolManager.ModifyLiquidityParams memory params,
-    //     uint256 amount0,
-    //     uint256 amount1
-    // ) external {
-    //     bytes32 callbackKey = keccak256(
-    //         abi.encode(poolKey, params, msg.sender)
-    //     );
-
-    //     callbackDataStore[callbackKey] = CallbackData({
-    //         user: msg.sender,
-    //         token0: IERC20(Currency.unwrap(poolKey.currency0)),
-    //         token1: IERC20(Currency.unwrap(poolKey.currency1)),
-    //         amount0: amount0,
-    //         amount1: amount1,
-    //         poolKey: poolKey,
-    //         params: params
-    //     });
-
-    //     // Initiate the liquidity modification on PoolManager
-    //     poolManager.modifyLiquidity(poolKey, params, abi.encode(callbackKey));
-    // }
-
-    // function unlockCallback(
-    //     bytes calldata rawData
-    // ) external returns (bytes memory) {
-    //     require(msg.sender == address(poolManager), "Unauthorized");
-
-    //     bytes32 callbackKey = abi.decode(rawData, (bytes32));
-    //     CallbackData memory cbData = callbackDataStore[callbackKey];
-
-    //     // Transfer tokens to PoolManager
-    //     cbData.token0.transferFrom(
-    //         cbData.user,
-    //         address(poolManager),
-    //         cbData.amount0
-    //     );
-    //     cbData.token1.transferFrom(
-    //         cbData.user,
-    //         address(poolManager),
-    //         cbData.amount1
-    //     );
-
-    //     // Clear storage
-    //     delete callbackDataStore[callbackKey];
-
-    //     return "";
-    // }
 }

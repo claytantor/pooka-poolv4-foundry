@@ -19,7 +19,7 @@ contract DeployPookaHook is Script {
     function setUp() public {}
 
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint("SIGNER_PRIVATE_KEY"); // Load private key from .env
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY"); // Load private key from .env
 
         // Sepolia Addresses (Replace with actual addresses)
         // Load all addresses from environment variables

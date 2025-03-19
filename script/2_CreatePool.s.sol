@@ -35,7 +35,7 @@ contract CreatePoolOnly is Script {
     function setUp() public {}
 
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint("SIGNER_PRIVATE_KEY"); // Load private key from .env
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY"); // Load private key from .env
 
         address dai = vm.envAddress("DAI_ADDRESS");
         address pooka = vm.envAddress("POOKA_ADDRESS");

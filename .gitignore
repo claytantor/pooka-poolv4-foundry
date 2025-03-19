@@ -12,6 +12,8 @@ docs/
 
 # Dotenv file
 .env
+.env.*
 bin/
 SCRATCH.md
+
 

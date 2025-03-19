@@ -1,5 +1,4 @@
 # foundry.toml
-
 [profile.default]
 src = 'src'
 out = 'out'
@@ -29,3 +28,5 @@ sepolia = "${SEPOLIA_RPC_URL}"
 # Etherscan API Keys for contract verification (optional)
 [etherscan]
 sepolia = { key = "${ETHERSCAN_API_KEY}" }
+
+

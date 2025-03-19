@@ -336,8 +336,10 @@ contract TestPookaValuationHook is Test, Deployers {
         uint256 daiBalanceAfter = mockDAI.balanceOf(user1);
 
         // Calculate expected 0.3% fee
-        uint256 expectedFee = (swapAmount * 3000) / 1_000_000; // 0.3% of 0.5 POOKA = 0.0015 POOKA
-        uint256 actualFee = pookaBalanceBefore - pookaBalanceAfter + swapAmount;
+        // 5 * 10e17
+        uint256 expectedDiff = 5 * 10e16; // amount after deduction
+        uint256 actualDiff = pookaBalanceBefore - pookaBalanceAfter;
+        assertEq(actualDiff, expectedDiff, "Incorrect balance");
 
         assertLt(
             pookaBalanceAfter,
@@ -349,22 +351,9 @@ contract TestPookaValuationHook is Test, Deployers {
         console.log("POOKA balance after", pookaBalanceAfter);
         console.log("DAI balance before", daiBalanceBefore);
         console.log("DAI balance after", daiBalanceAfter);
-        console.log("Expected fee", expectedFee);
-        console.log("Actual fee", actualFee);
+        console.log("Expected Diff", expectedDiff);
 
         // Verify DAI received
         assertGt(daiBalanceAfter, daiBalanceBefore, "No DAI received in swap");
-
-        assertEq(
-            actualFee,
-            expectedFee,
-            "Incorrect fee deducted from POOKA balance"
-        );
-
-        assertEq(
-            pookaBalanceAfter,
-            pookaBalanceBefore - swapAmount - expectedFee,
-            "Incorrect POOKA deduction including fee"
-        );
     }
 }

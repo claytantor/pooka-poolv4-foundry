@@ -148,7 +148,7 @@ contract PookaValuationHook is BaseHook, Ownable {
                 afterInitialize: false,
                 beforeAddLiquidity: false,
                 afterAddLiquidity: false,
-                beforeRemoveLiquidity: true,
+                beforeRemoveLiquidity: false,
                 afterRemoveLiquidity: false,
                 beforeSwap: true,
                 afterSwap: false,

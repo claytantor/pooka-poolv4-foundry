@@ -54,18 +54,21 @@ contract PookaValuationHook is BaseHook, Ownable {
         POOKA = PookaToken(_pooka);
     }
 
-    // // --- Modifiers ---
-    // modifier onlyPoolManager() {
-    //     require(msg.sender == address(poolManager), "Not PoolManager");
-    //     _;
-    // }
-
     // --- Fee Calculation Logic ---
     function _getUserFee() public view returns (uint24) {
         uint256 steps = totalPookaSwapped / VOLUME_STEP;
+
+        // Cap steps at 10 for maximum 50% fee reduction
+        if (steps > 10) {
+            steps = 10;
+        }
+
         uint256 feeReduction = steps * FEE_REDUCTION_PER_STEP;
 
-        if (feeReduction >= INITIAL_FEE) return 0;
+        // Ensure fee doesn't drop below 1500 (0.15%)
+        if (feeReduction >= INITIAL_FEE) {
+            return uint24(INITIAL_FEE / 2); // Minimum fee 0.15%
+        }
 
         return uint24(INITIAL_FEE - feeReduction);
     }

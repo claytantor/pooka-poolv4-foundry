@@ -10,6 +10,8 @@ import {BeforeSwapDelta, BeforeSwapDeltaLibrary} from "v4-core/types/BeforeSwapD
 import {TickMath} from "v4-core/libraries/TickMath.sol";
 import {PookaToken} from "./PookaToken.sol";
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
+import {LiquidityAmounts} from "v4-periphery/libraries/LiquidityAmounts.sol";
+import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -28,14 +30,12 @@ contract PookaValuationHook is BaseHook, Ownable {
     uint24 public constant FEE_REDUCTION_PER_STEP = 150; // 5% of 3000
     uint256 public constant VOLUME_STEP = 1_000 * 1e18; // 10k POOKA tokens
 
-    // Track total POOKA swapped (in wei)
+    // total POOKA swapped in the pool
     uint256 public totalPookaSwapped;
 
     // Track positions of POOKA holders
     struct Position {
-        int256 liquidity;
-        int24 tickLower;
-        int24 tickUpper;
+        uint256 pookaAmount;
     }
 
     mapping(address => Position[]) public userPositions;
@@ -54,54 +54,43 @@ contract PookaValuationHook is BaseHook, Ownable {
         POOKA = PookaToken(_pooka);
     }
 
-    // --- Fee Calculation Logic ---
-    function _getUserFee() public view returns (uint24) {
-        uint256 steps = totalPookaSwapped / VOLUME_STEP;
+    function _getUserFee(address user) public view returns (uint24) {
+        Position[] storage positions = userPositions[user];
 
-        // Cap steps at 10 for maximum 50% fee reduction
-        if (steps > 10) {
-            steps = 10;
+        // If no positions exist, return the initial fee (or another default value)
+        if (positions.length == 0) {
+            return uint24(INITIAL_FEE);
         }
+
+        uint256 steps = positions[0].pookaAmount / VOLUME_STEP;
+        steps = steps > 10 ? 10 : steps; // Max 10 steps
 
         uint256 feeReduction = steps * FEE_REDUCTION_PER_STEP;
+        return
+            feeReduction >= INITIAL_FEE
+                ? uint24(INITIAL_FEE / 2)
+                : uint24(INITIAL_FEE - feeReduction);
+    }
 
-        // Ensure fee doesn't drop below 1500 (0.15%)
-        if (feeReduction >= INITIAL_FEE) {
-            return uint24(INITIAL_FEE / 2); // Minimum fee 0.15%
-        }
-
-        return uint24(INITIAL_FEE - feeReduction);
+    // --- Token Order Check ---
+    function _isPookaToken0(
+        PoolKey calldata poolKey
+    ) internal view returns (bool) {
+        return Currency.unwrap(poolKey.currency0) == address(POOKA);
     }
 
     // --- Position Tracking ---
-    function _updatePosition(
-        address user,
-        IPoolManager.ModifyLiquidityParams memory params,
-        bool isAdd
-    ) internal {
+    function _updatePosition(address user, bool isAdd) internal {
+        uint256 pookaAmount = POOKA.balanceOf(user);
+
         for (uint i = 0; i < userPositions[user].length; i++) {
             Position storage pos = userPositions[user][i];
-            if (
-                pos.tickLower == params.tickLower &&
-                pos.tickUpper == params.tickUpper
-            ) {
-                if (isAdd) {
-                    pos.liquidity += int256(params.liquidityDelta);
-                } else {
-                    pos.liquidity -= int256(params.liquidityDelta);
-                }
-                if (pos.liquidity == 0) delete userPositions[user][i];
-                return;
-            }
+            pos.pookaAmount = pookaAmount;
         }
 
-        if (isAdd && params.liquidityDelta > 0) {
+        if (isAdd && pookaAmount > 0) {
             userPositions[user].push(
-                Position({
-                    liquidity: int256(params.liquidityDelta),
-                    tickLower: params.tickLower,
-                    tickUpper: params.tickUpper
-                })
+                Position({pookaAmount: POOKA.balanceOf(user)})
             );
         }
     }
@@ -154,7 +143,7 @@ contract PookaValuationHook is BaseHook, Ownable {
                 beforeRemoveLiquidity: false,
                 afterRemoveLiquidity: false,
                 beforeSwap: true,
-                afterSwap: false,
+                afterSwap: true,
                 beforeDonate: false,
                 afterDonate: false,
                 beforeSwapReturnDelta: false,
@@ -165,13 +154,13 @@ contract PookaValuationHook is BaseHook, Ownable {
     }
 
     // --- Swap Handling ---
-    function beforeSwap(
+    function _beforeSwap(
         address,
         PoolKey calldata key,
         IPoolManager.SwapParams calldata params,
         bytes calldata hookData
     )
-        external
+        internal
         override
         onlyPoolManager
         returns (bytes4, BeforeSwapDelta, uint24)
@@ -203,43 +192,31 @@ contract PookaValuationHook is BaseHook, Ownable {
         return (
             BaseHook.beforeSwap.selector,
             BeforeSwapDeltaLibrary.ZERO_DELTA,
-            _getUserFee() // Return dynamic fee
+            _getUserFee(user) // Return dynamic fee
         );
     }
 
-    // // --- Liquidity Position Tracking ---
-    // function beforeAddLiquidity(
-    //     address sender,
-    //     PoolKey calldata,
-    //     IPoolManager.ModifyLiquidityParams calldata params,
-    //     bytes calldata hookData
-    // ) external pure override returns (bytes4) {
-    //     address user = abi.decode(hookData, (address));
-    //     if (user == address(0)) revert InvalidSwap();
+    // update the position of the user's POOKA holdings
+    // so that its available at the time of the next swap
+    function _afterSwap(
+        address,
+        PoolKey calldata key,
+        IPoolManager.SwapParams calldata,
+        BalanceDelta,
+        bytes calldata hookData
+    ) internal override returns (bytes4, int128) {
+        // If this is not an ETH-TOKEN pool with this hook attached, ignore
+        if (!key.currency0.isAddressZero()) return (this.afterSwap.selector, 0);
 
-    //     if (POOKA.balanceOf(user) > 0) {
-    //         _updatePosition(user, params, true);
-    //     }
-    //     return this.beforeAddLiquidity.selector;
-    // }
+        address user = abi.decode(hookData, (address));
+        if (user == address(0)) revert InvalidSwap();
 
-    // function beforeRemoveLiquidity(
-    //     address sender,
-    //     PoolKey calldata,
-    //     IPoolManager.ModifyLiquidityParams calldata params,
-    //     bytes calldata
-    // )
-    //     public
-    //     view
-    //     override
-    //     returns (bytes4, IPoolManager.ModifyLiquidityParams memory)
-    // {
-    //     require(msg.sender == address(poolManager), "Unauthorized");
-    //     if (POOKA.balanceOf(sender) > 0) {
-    //         _updatePosition(sender, params, false);
-    //     }
-    //     return (this.beforeRemoveLiquidity.selector, params);
-    // }
+        if (POOKA.balanceOf(user) > 0) {
+            _updatePosition(user, false);
+        }
+
+        return (this.afterSwap.selector, 0);
+    }
 
     // --- Internal Functions ---
     function _executePrivilegedSwap(

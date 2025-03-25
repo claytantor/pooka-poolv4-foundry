@@ -124,7 +124,7 @@ contract TestPookaValuationHook is Test, Deployers {
         }
 
         // Deploy hook to an address that has the proper flags set
-        uint160 flags = uint160(Hooks.BEFORE_SWAP_FLAG);
+        uint160 flags = uint160(Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG);
         deployCodeTo(
             "PookaValuationHook.sol",
             abi.encode(manager, address(mockDAI), address(pookaToken)),

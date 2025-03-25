@@ -261,16 +261,4 @@ contract PookaValuationHook is BaseHook, Ownable {
     function _getPookaAddress() internal view returns (address) {
         return address(POOKA);
     }
-
-    // function _handleOwnerSwap(
-    //     PoolKey calldata /*key*/,
-    //     IPoolManager.SwapParams calldata /*params*/
-    // ) internal pure returns (bytes4, BeforeSwapDelta, uint24) {
-    //     // Owner swaps bypass fees and price limits
-    //     return (
-    //         BaseHook.beforeSwap.selector,
-    //         BeforeSwapDeltaLibrary.ZERO_DELTA,
-    //         0 // 0% swap fee
-    //     );
-    // }
 }

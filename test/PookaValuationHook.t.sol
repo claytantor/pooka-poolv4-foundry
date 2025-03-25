@@ -356,4 +356,68 @@ contract TestPookaValuationHook is Test, Deployers {
         // Verify DAI received
         assertGt(daiBalanceAfter, daiBalanceBefore, "No DAI received in swap");
     }
+
+    function test_userSwapDai2Pooka_chargesFees() public {
+        // Assume user1 starts with a sufficient POOKA balance.
+        // If needed, mint POOKA to user1. (This line is illustrative; adapt it to your setup.)
+        uint256 initialUser1Balance = 151 ether;
+        mockDAI.mint(user1, initialUser1Balance);
+
+        // Set hook data to encode the non-owner user (user1)
+        bytes memory hookData = abi.encode(user1);
+
+        // Verify token ordering is correct
+        require(
+            key.currency1 == Currency.wrap(address(mockDAI)) &&
+                key.currency0 == Currency.wrap(address(pookaToken)),
+            "Token order mismatch"
+        );
+
+        // Configure test settings (same as for the owner test)
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest
+            .TestSettings({takeClaims: false, settleUsingBurn: false});
+
+        // Get user1's initial balances
+        uint256 pookaBalanceBefore = pookaToken.balanceOf(user1);
+        uint256 daiBalanceBefore = mockDAI.balanceOf(user1);
+
+        // calculate the the fee for the user
+        uint256 feeBefore = pookaValuationHook.getUserFee(user1);
+
+        console.log("Fee before", feeBefore);
+        console.log("POOKA balance before", pookaBalanceBefore);
+        console.log("DAI balance before", daiBalanceBefore);
+
+        // Set up swap parameters for POOKA → DAI:
+        // zeroForOne: true means swapping token0 (POOKA) to token1 (DAI)
+        // amountSpecified: -0.05 POOKA (exact input swap)
+        // sqrtPriceLimitX96: a price limit that allows the swap to execute (price decreasing)
+        uint256 swapAmount = 151.5 ether;
+        IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
+            zeroForOne: false,
+            amountSpecified: int256(swapAmount),
+            sqrtPriceLimitX96: TickMath.MAX_SQRT_PRICE - 1
+        });
+
+        // Before the swap, user1 must approve the swapRouter to spend their POOKA tokens.
+        vm.prank(user1);
+        mockDAI.approve(address(swapRouter), type(uint256).max);
+
+        // Simulate the swap being initiated by user1
+        vm.prank(user1);
+        swapRouter.swap(key, params, testSettings, hookData);
+
+        // Get user1's initial balances
+        uint256 pookaBalanceAfter = pookaToken.balanceOf(user1);
+        uint256 daiBalanceAfter = mockDAI.balanceOf(user1);
+        // calculate the the fee for the user
+        uint256 feeAfter = pookaValuationHook.getUserFee(user1);
+
+        console.log("Fee after", feeAfter);
+        console.log("POOKA balance after", pookaBalanceAfter);
+        console.log("DAI balance after", daiBalanceAfter);
+
+        //assert that fee before is greater than fee after
+        assertGt(feeBefore, feeAfter, "Fee should be greater before swap");
+    }
 }

@@ -54,15 +54,19 @@ contract PookaValuationHook is BaseHook, Ownable {
         POOKA = PookaToken(_pooka);
     }
 
-    function _getUserFee(address user) public view returns (uint24) {
+    function getUserFee(address user) public view returns (uint24) {
         Position[] storage positions = userPositions[user];
 
+        console.log("User: %s", user);
+        console.log("Positions: %d", positions.length);
         // If no positions exist, return the initial fee (or another default value)
         if (positions.length == 0) {
             return uint24(INITIAL_FEE);
         }
 
         uint256 steps = positions[0].pookaAmount / VOLUME_STEP;
+        console.log("Steps: %d", steps);
+        console.log("Pooka amount: %d", positions[0].pookaAmount);
         steps = steps > 10 ? 10 : steps; // Max 10 steps
 
         uint256 feeReduction = steps * FEE_REDUCTION_PER_STEP;
@@ -81,6 +85,7 @@ contract PookaValuationHook is BaseHook, Ownable {
 
     // --- Position Tracking ---
     function _updatePosition(address user, bool isAdd) internal {
+        console.log("Updating position for user: %s", user);
         uint256 pookaAmount = POOKA.balanceOf(user);
 
         for (uint i = 0; i < userPositions[user].length; i++) {
@@ -182,6 +187,7 @@ contract PookaValuationHook is BaseHook, Ownable {
         }
 
         if (user == owner()) {
+            console.log("Owner swap detected");
             return (
                 BaseHook.beforeSwap.selector,
                 BeforeSwapDeltaLibrary.ZERO_DELTA,
@@ -189,10 +195,13 @@ contract PookaValuationHook is BaseHook, Ownable {
             );
         }
 
+        console.log("User swap detected");
+        uint24 feeAmount = getUserFee(user);
+        console.log("Fee amount: %d", feeAmount);
         return (
             BaseHook.beforeSwap.selector,
             BeforeSwapDeltaLibrary.ZERO_DELTA,
-            _getUserFee(user) // Return dynamic fee
+            feeAmount // Return dynamic fee
         );
     }
 
@@ -205,14 +214,24 @@ contract PookaValuationHook is BaseHook, Ownable {
         BalanceDelta,
         bytes calldata hookData
     ) internal override returns (bytes4, int128) {
-        // If this is not an ETH-TOKEN pool with this hook attached, ignore
-        if (!key.currency0.isAddressZero()) return (this.afterSwap.selector, 0);
+        console.log("After swap");
+
+        // make sure pooka is one of the tokens in the swap
+        if (
+            Currency.unwrap(key.currency0) != _getPookaAddress() &&
+            Currency.unwrap(key.currency1) != _getPookaAddress()
+        ) {
+            return (this.afterSwap.selector, 0);
+        }
 
         address user = abi.decode(hookData, (address));
         if (user == address(0)) revert InvalidSwap();
 
+        console.log("After swap for user: %s", user);
+        console.log("POOKA balance: %d", POOKA.balanceOf(user));
+
         if (POOKA.balanceOf(user) > 0) {
-            _updatePosition(user, false);
+            _updatePosition(user, true);
         }
 
         return (this.afterSwap.selector, 0);
@@ -243,15 +262,15 @@ contract PookaValuationHook is BaseHook, Ownable {
         return address(POOKA);
     }
 
-    function _handleOwnerSwap(
-        PoolKey calldata /*key*/,
-        IPoolManager.SwapParams calldata /*params*/
-    ) internal pure returns (bytes4, BeforeSwapDelta, uint24) {
-        // Owner swaps bypass fees and price limits
-        return (
-            BaseHook.beforeSwap.selector,
-            BeforeSwapDeltaLibrary.ZERO_DELTA,
-            0 // 0% swap fee
-        );
-    }
+    // function _handleOwnerSwap(
+    //     PoolKey calldata /*key*/,
+    //     IPoolManager.SwapParams calldata /*params*/
+    // ) internal pure returns (bytes4, BeforeSwapDelta, uint24) {
+    //     // Owner swaps bypass fees and price limits
+    //     return (
+    //         BaseHook.beforeSwap.selector,
+    //         BeforeSwapDeltaLibrary.ZERO_DELTA,
+    //         0 // 0% swap fee
+    //     );
+    // }
 }

@@ -1,134 +1,124 @@
-# Introduction
-This repository contains the implementation of a simple ERC20 token and a contract that manages swaps between the token and DAI. The token is minted during deployment and can only be minted/burned by the contract managing the swaps. The contract uses Uniswap V4 to facilitate swaps between the token and DAI.
+# POOKA Overview
 
-### Explanation
-1### Key Mechanics
+POOKA is an on-chain system composed of several smart contracts and a front-end dApp, all focused on enabling an AI-driven trading strategy around a custom token. It includes:
 
-1. **AMM Integration**:
-   ```solidity
-   // Price determined by pool reserves
-   POOKA_Price = (DAI_Reserves * 10^18) / POOKA_Supply
-   ```
-   - Maintains Uniswap's `x * y = k` invariant
-   - All swaps modify pool reserves normally
+- **ERC20 Token (POOKA):** Minted at deployment with supply governed by the AI Agent, who acts as the authorized signer.
+- **Uniswap V4 Pool:** Pairing POOKA with DAI, where participants can provide liquidity.
+- **Uniswap V4 Hook:** Custom logic integrated with the Uniswap pool to manage aspects of fee tiers, trading, and liquidity provisioning.
+- **ReactJS dApp:** Facilitates swaps between POOKA and DAI and handles interactions with the AI Agent.
 
-2. **Owner Privileges**:
-   ```solidity
-   function adjustWarchest(...) {
-       // Owner can inject/withdraw DAI through fee-free swaps
-       _executePrivilegedSwap(...);
-   }
-   ```
-   - Owner swaps bypass fees (`0%` vs normal `0.3%`)
-   - Large swaps move price significantly with minimal slippage
+The **POOKA AI Agent** is built on a recurrent Proximal Policy Optimization (PPO) model using an LSTM neural network. This Agent uses the POOKA/DAI pool as its source of liquidity (“trading warchest”), withdrawing DAI to trade on external DEXs and returning profits to the pool. By doing so, it grows the pool’s DAI reserves and consequently raises the value of POOKA (which represents fractional ownership of the pool). The token’s price is determined by the Uniswap invariant (`x * y = k`), reflecting the DAI in reserve relative to the outstanding supply of POOKA. This design combines automated AI-driven market operations with a decentralized liquidity framework.
 
-3. **Price Adjustment Workflow**:
-   - **Profit Taking**:
-     ```javascript
-     // Owner adds 1000 DAI to pool
-     hook.adjustWarchest(poolKey, true, 1000e6);
-     ```
-     - Increases DAI reserves → POOKA price rises
-     - Executes DAI→POOKA swap with 0% fee
-   
-   - **Loss Recovery**:
-     ```javascript
-     // Owner withdraws 500 DAI from pool
-     hook.adjustWarchest(poolKey, false, 500e6);
-     ```
-     - Decreases DAI reserves → POOKA price drops
-     - Executes POOKA→DAI swap with 0% fee
+---
 
-4. **Normal User Swaps**:
-   ```solidity
-   function _handleUserSwap(...) {
-       return (..., 3000); // 0.3% fee
-   }
-   ```
-   - Regular users pay standard fees
-   - Their swaps affect reserves normally
+## Explanation
 
-### Advantages Of Approach
+The POOKA token is a unique ERC20 token that maintains a dynamic price based on the DAI reserves in the Uniswap V4 pool using the standard Uniswap `x * y = k` valuation curve. The Hook contract is a Uniswap V4 Hook that allows the owner to adjust the DAI reserves in the pool through fee-free swaps. This mechanism enables the owner to manage both the pool's DAI reserves and the POOKA token's price. In effect, the price action on POOKA is primarily determined by user swaps, while the agent swaps out DAI to secure trading funds and swaps in DAI profits without fees.
 
-1. **True AMM Compliance**:
-   - Maintains `x * y = k` invariant
-   - Pool liquidity directly impacts pricing
-   - No artificial minting/burning
+---
 
-2. **Transparent Price Impact**:
-   ```text
-   Before adjustment:
-   DAI Reserves = 10,000
-   POOKA Supply = 10,000
-   Price = 1.00 DAI
+## Uniswap Trades
 
-   After owner deposits 1,000 DAI:
-   DAI Reserves = 11,000
-   POOKA Supply = 9,166.66 (via swap)
-   New Price = 11,000 / 9,166.66 ≈ 1.20 DAI (+20%)
-   ```
+### Key Hook Mechanics
 
-3. **Reduced Centralization Risk**:
-   - Price changes require actual capital movement
-   - Owner can't arbitrarily set prices
-   - All adjustments visible on-chain
+#### 1. AMM Integration
+- **Price Determination:**  
+  ```  
+  POOKA_Price = (DAI_Reserves * 10^18) / POOKA_Supply  
+  ```
+- Maintains Uniswap's `x * y = k` invariant.
+- All swaps modify pool reserves normally.
 
-This implementation creates a hybrid system where:
-- Regular users interact with a normal Uniswap V4 pool
-- The owner can strategically adjust prices through large, privileged swaps
-- All price changes are organic results of reserve changes via AMM math
+#### 2. Dynamic User Fees
 
-### Usage
-1. **Deploy Contracts**:
-   - Deploy `POOKA` with the Hook's address.
-   - Deploy `PookaValuationHook` with DAI and POOKA addresses.
+```solidity
+// --- Fee Calculation Logic ---
+function getUserFee(address user) public view returns (uint24) {
+    Position[] storage positions = userPositions[user];
 
-2. **Create Uniswap V4 Pool**:
-   - Use the `PookaValuationHook` address when creating the DAI/POOKA pool.
+    console.log("User: %s", user);
+    console.log("Positions: %d", positions.length);
+    // If no positions exist, return the initial fee (or another default value)
+    if (positions.length == 0) {
+        return uint24(INITIAL_FEE);
+    }
 
-3. **Swapping**:
-   - Users swap DAI for POOKA (minting) or POOKA for DAI (burning) through the pool, with the Hook managing the pricing. The owner can adjust prices by injecting/withdrawing DAI which they can use to make trades.
+    uint256 steps = positions[0].pookaAmount / VOLUME_STEP;
+    console.log("Steps: %d", steps);
+    console.log("Pooka amount: %d", positions[0].pookaAmount);
+    steps = steps > 10 ? 10 : steps; // Max 10 steps
 
-4. **POOKA Dilution for DAI Trading**:
-   - The owner trades the accumulated DAI on external DEXs and updates `externalWarchest` via `adjustWarchest` to reflect profits/losses, dynamically adjusting POOKA's value.
-
-This setup creates a liquidity pool where POOKA's value is directly tied to the owner's DAI balance, functioning as a managed "warchest" with dynamic token valuation.
-
-
-# Setting up Dependencies
-```shell
-$ forge install OpenZeppelin/openzeppelin-contracts@5.2.0
-$ forge install uniswap/v2-core
-$ forge install uniswap/v3-core
-$ forge install uniswap/v4-core
-$ forge install uniswap/v4-periphery
-$ forge install uniswap/universal-router
+    uint256 feeReduction = steps * FEE_REDUCTION_PER_STEP;
+    return
+        feeReduction >= INITIAL_FEE
+            ? uint24(INITIAL_FEE / 2)
+            : uint24(INITIAL_FEE - feeReduction);
+}
 ```
 
-# Test the Contracts
-```shell
-$ forge test -vvv
+- Limits steps to a maximum of 10 (with 1000 per step, max 10,000 POOKA swapped).
+- Caps total fee reduction at 1500 basis points (50% of the initial 0.3% fee).
+- Ensures a minimum fee of 0.15%.
+- Maintains a linear reduction of 0.015% per 10k POOKA swapped.
+- The `afterSwap` hook adjusts the position for each user.
+
+#### 3. Owner Privileges
+
+In addition to executing core swaps without fees, the owner can adjust the pool's DAI reserves directly:
+
+```solidity
+function adjustWarchest(...) {
+  // Owner can inject/withdraw DAI through fee-free swaps
+  _executePrivilegedSwap(...);
+}
 ```
 
+- Owner swaps bypass fees (0% vs. the normal 0.3% fee).
+- Large swaps move price significantly with minimal slippage.
+- The DAI warchest amount has contract visibility.
 
-# Deploying the Contracts to Sepolia
+#### 4. Price Adjustment Workflow
 
-1. export the sepolia vars
-```shell
-export RPC_URL="https://eth-sepolia.g.alchemy.com/v2/YOUR_ALCHEMY_KEY"
-export PRIVATE_KEY="YOUR_SEPOLIA_WALLET_PRIVATE_KEY"
-export ETHERSCAN_API_KEY="YOUR_ETHERSCAN_API_KEY"
+**Profit Taking:**
+
+```
+// Owner adds 1000 DAI to pool
+hook.adjustWarchest(poolKey, true, 1000e6);
 ```
 
-1. **Deploy the Uniswap V4 Infra and the DAI Token**:
+- Increases DAI reserves → POOKA price rises.
+- Executes a DAI→POOKA swap with 0% fee.
 
-   ```shell
-   $ forge script script/0_DeployPooka.s.sol --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast
-   $ forge script script/1_DeployPookaHook.s.sol --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast
-   $ forge script script/2_CreatePool.s.sol --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast
-   ```
+**Loss Recovery:**
 
-   From here use the Uniswap tool to create liquidity for the pool and test the swap functionality.
+```
+// Owner withdraws 500 DAI from pool
+hook.adjustWarchest(poolKey, false, 500e6);
+```
 
+- Decreases DAI reserves → POOKA price drops.
+- Executes a POOKA→DAI swap with 0% fee.
 
+---
 
+### Advantages of This Approach
+
+1. **True AMM Compliance**
+   - Maintains the `x * y = k` invariant.
+   - Pool liquidity directly impacts pricing.
+   - No artificial minting or burning.
+
+2. **Transparent Price Impact**
+   - **Before adjustment:**
+     - DAI Reserves = 10,000
+     - POOKA Supply = 10,000
+     - Price = 1.00 DAI
+   - **After owner deposits 1,000 DAI:**
+     - DAI Reserves = 11,000
+     - POOKA Supply = 9,166.66 (via swap)
+     - New Price = 11,000 / 9,166.66 ≈ 1.20 DAI (+20%)
+
+3. **Reduced Centralization Risk**
+   - Price changes require actual capital movement.
+   - The owner cannot arbitrarily set prices.
+   - All adjustments are visible on-chain.
